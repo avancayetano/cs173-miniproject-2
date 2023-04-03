@@ -1,6 +1,6 @@
 import { TezosToolkit } from "@taquito/taquito";
-import { wallet } from "./wallet";
+import { wallet, network } from "./wallet";
 
-export const tezos = new TezosToolkit("https://limanet.smartpy.io");
+export const tezos = new TezosToolkit(`https://${network}.smartpy.io`);
 
 tezos.setWalletProvider(wallet);

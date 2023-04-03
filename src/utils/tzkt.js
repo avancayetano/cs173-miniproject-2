@@ -1,8 +1,10 @@
 import axios from "axios";
 
-export const fetchContractStorage = async (contractAddr) => {
+import { network, contractAddr } from "./wallet";
+
+export const fetchContractStorage = async () => {
   const res = await axios.get(
-    `https://api.limanet.tzkt.io/v1/contracts/${contractAddr}/storage`
+    `https://api.${network}.tzkt.io/v1/contracts/${contractAddr}/storage`
   );
   return res.data;
 };

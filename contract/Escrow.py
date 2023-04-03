@@ -1,149 +1,304 @@
+# type: ignore
 # Escrow - Example for illustrative purposes only.
 
 import smartpy as sp
 
+
 class Escrow(sp.Contract):
-    def __init__(self, owner, fromOwner, counterparty, fromCounterparty, admin, epoch, hashedSecret):
-        self.init(fromOwner            = fromOwner,
-                  fromCounterparty     = fromCounterparty,
-                  balanceOwner         = sp.tez(0),
-                  balanceCounterparty  = sp.tez(0),
-                  hashedSecret         = hashedSecret,
-                  epoch                = epoch,
-                  owner                = owner,
-                  counterparty         = counterparty,
-                  admin                = admin,             # admin
-                  ownerWithdrew        = sp.bool(False),    # indicates whether owner withdrew
-                  counterpartyWithdrew = sp.bool(False),    # indicates whether counterparty withdrew
-                 )
+    def __init__(self):
+
+        self.init(
+            # this escrow contract can have multiple txns
+            txns=sp.map(
+                l={},
+                tkey=sp.TAddress,  # address of the admin
+                tvalue=sp.TRecord(
+                    owner=sp.TOption(sp.TAddress),
+                    counterparty=sp.TOption(sp.TAddress),
+                    fromOwner=sp.TMutez,
+                    fromCounterparty=sp.TMutez,
+                    balanceOwner=sp.TMutez,
+                    balanceCounterparty=sp.TMutez,
+                    epoch=sp.TTimestamp,
+                    hashedSecret=sp.TOption(sp.TBytes),
+                    ownerWithdrawn=sp.TBool,
+                    counterpartyWithdrawn=sp.TBool,
+                    escrowWithdrawn=sp.TBool,
+                ),
+            ),
+            # maps each owner and counterparty to their admin
+            partyToAdminMap=sp.map(l={}, tkey=sp.TAddress, tvalue=sp.TAddress),
+        )
+
+    @sp.entry_point
+    def registerAsAdmin(self):
+        sp.verify(~self.data.txns.contains(sp.sender))
+        self.initTxnData(sp.sender)
+
+    def initTxnData(self, sender):
+        self.data.txns[sender] = sp.record(
+            owner=sp.none,
+            counterparty=sp.none,
+            fromOwner=sp.tez(0),
+            fromCounterparty=sp.tez(0),
+            balanceOwner=sp.tez(0),
+            balanceCounterparty=sp.tez(0),
+            epoch=sp.timestamp(0),
+            hashedSecret=sp.none,
+            ownerWithdrawn=sp.bool(False),
+            counterpartyWithdrawn=sp.bool(False),
+            escrowWithdrawn=sp.bool(False),
+        )
+
+    @sp.entry_point
+    def setTxn(self, owner, counterparty, fromOwner, fromCounterparty, epoch, secret):
+        sp.verify(self.data.txns.contains(sp.sender))  # check if sender is admin
+
+        sp.set_type(owner, sp.TAddress)
+        sp.set_type(counterparty, sp.TAddress)
+        sp.set_type(fromOwner, sp.TMutez)
+        sp.set_type(fromCounterparty, sp.TMutez)
+        sp.set_type(epoch, sp.TTimestamp)
+        sp.set_type(secret, sp.TBytes)
+
+        self.data.txns[sp.sender].owner = sp.some(owner)
+        self.data.txns[sp.sender].counterparty = sp.some(counterparty)
+        self.data.txns[sp.sender].fromOwner = fromOwner
+        self.data.txns[sp.sender].fromCounterparty = fromCounterparty
+        self.data.txns[sp.sender].epoch = epoch
+        self.data.txns[sp.sender].hashedSecret = sp.some(sp.blake2b(secret))
+
+        self.data.partyToAdminMap[owner] = sp.sender
+        self.data.partyToAdminMap[counterparty] = sp.sender
 
     @sp.entry_point
     def addBalanceOwner(self):
-        sp.verify(~self.data.ownerWithdrew)    # owner can only deposit if it hasn't withdrawn
-        sp.verify(self.data.balanceOwner == sp.tez(0))
-        sp.verify(sp.amount == self.data.fromOwner)
-        self.data.balanceOwner = self.data.fromOwner
+        sp.verify(
+            self.data.partyToAdminMap.contains(sp.sender)
+        )  # if sender is part of a txn
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(
+            ~self.data.txns[admin].escrowWithdrawn
+        )  # if the escrow txn isn't withdrawn
+        sp.verify(
+            ~self.data.txns[admin].ownerWithdrawn
+        )  # owner can only deposit if it hasn't withdrawn
+
+        sp.verify(self.data.txns[admin].balanceOwner == sp.tez(0))
+        sp.verify(sp.amount == self.data.txns[admin].fromOwner)
+
+        self.data.txns[admin].balanceOwner = self.data.txns[admin].fromOwner
 
     @sp.entry_point
     def addBalanceCounterparty(self):
-        sp.verify(~self.data.counterpartyWithdrew)    # counterparty can only deposit if it hasn't withdrawn
-        sp.verify(self.data.balanceCounterparty == sp.tez(0))
-        sp.verify(sp.amount == self.data.fromCounterparty)
-        self.data.balanceCounterparty = self.data.fromCounterparty
+        sp.verify(
+            self.data.partyToAdminMap.contains(sp.sender)
+        )  # if sender is part of a txn
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(
+            ~self.data.txns[admin].escrowWithdrawn
+        )  # if the escrow txn isn't withdrawn
+        sp.verify(
+            ~self.data.txns[admin].counterpartyWithdrawn
+        )  # counterparty can only deposit if it hasn't withdrawn
 
-    def claim(self, identity):
-        # can only claim funds if both parties haven't withdrawn
-        sp.verify(~self.data.ownerWithdrew & ~self.data.counterpartyWithdrew)
+        sp.verify(self.data.txns[admin].balanceCounterparty == sp.tez(0))
+        sp.verify(sp.amount == self.data.txns[admin].fromCounterparty)
+
+        self.data.txns[admin].balanceCounterparty = self.data.txns[
+            admin
+        ].fromCounterparty
+
+    def claim(self, identity, admin):
+        sp.set_type(identity, sp.TAddress)
+        sp.set_type(admin, sp.TAddress)
+
+        # can only claim funds if escrow isn't withdrawn
+        sp.verify(~self.data.txns[admin].escrowWithdrawn)
         sp.verify(sp.sender == identity)
-        sp.send(identity, self.data.balanceOwner + self.data.balanceCounterparty)
-        self.data.balanceOwner = sp.tez(0)
-        self.data.balanceCounterparty = sp.tez(0)
+        sp.send(
+            identity,
+            self.data.txns[admin].balanceOwner
+            + self.data.txns[admin].balanceCounterparty,
+        )
+        self.data.txns[admin].balanceOwner = sp.tez(0)
+        self.data.txns[admin].balanceCounterparty = sp.tez(0)
 
     @sp.entry_point
-    def claimCounterparty(self, params):
-        sp.verify(self.data.epoch < sp.now)
-        sp.verify(self.data.hashedSecret == sp.blake2b(params.secret))
-        self.claim(self.data.counterparty)
+    def claimCounterparty(self, secret):
+        sp.set_type(secret, sp.TBytes)
+
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(~self.data.txns[admin].counterpartyWithdrawn)
+        sp.verify(self.data.txns[admin].epoch > sp.now)
+        sp.verify(self.data.txns[admin].hashedSecret.open_some() == sp.blake2b(secret))
+        self.claim(self.data.txns[admin].counterparty.open_some(), admin)
 
     @sp.entry_point
     def claimOwner(self):
-        sp.verify(self.data.epoch < sp.now)
-        self.claim(self.data.owner)
-
-
-    @sp.entry_point
-    def withdrawOwner(self):
-        sp.verify(sp.sender == self.data.owner)
-        self.data.ownerWithdrew = sp.bool(True)
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(~self.data.txns[admin].ownerWithdrawn)
+        sp.verify(self.data.txns[admin].epoch < sp.now)
+        self.claim(self.data.txns[admin].owner.open_some(), admin)
 
     @sp.entry_point
-    def withdrawCounterparty(self):
-        sp.verify(sp.sender == self.data.counterparty)
-        self.data.counterpartyWithdrew = sp.bool(True)
+    def toggleOwnerWithdrawn(self, withdrawn):
+        sp.set_type(withdrawn, sp.TBool)
+
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(sp.sender == self.data.txns[admin].owner.open_some())
+        self.data.txns[admin].ownerWithdrawn = withdrawn
 
     @sp.entry_point
-    def refund(self):
-        
-        sp.verify(sp.sender == self.data.admin)
-        sp.verify(self.data.ownerWithdrew & self.data.counterpartyWithdrew)
+    def toggleCounterpartyWithdrawn(self, withdrawn):
+        sp.set_type(withdrawn, sp.TBool)
+
+        admin = self.data.partyToAdminMap[sp.sender]
+        sp.verify(sp.sender == self.data.txns[admin].counterparty.open_some())
+        self.data.txns[admin].counterpartyWithdrawn = withdrawn
+
+    @sp.entry_point
+    def revertFunds(self):
+        sp.verify(self.data.txns.contains(sp.sender))  # check if sender is admin
+        sp.verify(
+            self.data.txns[sp.sender].ownerWithdrawn
+            & self.data.txns[sp.sender].counterpartyWithdrawn
+        )
 
         # returns the funds to the respective parties
-        sp.send(self.data.owner, self.data.balanceOwner)
-        sp.send(self.data.counterparty, self.data.balanceCounterparty)
+        sp.send(
+            self.data.txns[sp.sender].owner.open_some(),
+            self.data.txns[sp.sender].balanceOwner,
+        )
+        sp.send(
+            self.data.txns[sp.sender].counterparty.open_some(),
+            self.data.txns[sp.sender].balanceCounterparty,
+        )
 
-        # resets the escrow contract
-        self.data.balanceOwner = sp.tez(0)
-        self.data.balanceCounterparty = sp.tez(0)
-        self.data.ownerWithdrew = sp.bool(False)
-        self.data.counterpartyWithdrew = sp.bool(False)
-        
-        
+        self.data.txns[sp.sender].balanceOwner = sp.tez(0)
+        self.data.txns[sp.sender].balanceCounterparty = sp.tez(0)
+        self.data.txns[sp.sender].escrowWithdrawn = sp.bool(True)
 
-@sp.add_test(name = "Escrow")
+    @sp.entry_point
+    def resetTxn(self):
+        sp.verify(self.data.txns.contains(sp.sender))
+        owner = self.data.txns[sp.sender].owner
+        counterparty = self.data.txns[sp.sender].counterparty
+        del self.data.partyToAdminMap[owner.open_some()]
+        del self.data.partyToAdminMap[counterparty.open_some()]
+        self.initTxnData(sp.sender)
+
+
+@sp.add_test(name="Escrow")
 def test():
     scenario = sp.test_scenario()
     scenario.h1("Escrow")
-    hashSecret = sp.blake2b(sp.bytes("0x01223344"))
-    admin = sp.test_account("admin")
-    alice = sp.test_account("Alice")
-    bob = sp.test_account("Bob")
-    c1 = Escrow(alice.address, sp.tez(50), bob.address, sp.tez(4), admin.address, sp.timestamp(123), hashSecret)
+
+    admin = sp.test_account("Admin").address
+    alice = sp.test_account("Alice").address
+    bob = sp.test_account("Bob").address
+    c1 = Escrow()
     scenario += c1
-    c1.addBalanceOwner().run(sender = alice, amount = sp.tez(50))
-    c1.addBalanceCounterparty().run(sender = bob, amount = sp.tez(4))
-    scenario.h3("Erronous secret")
-    c1.claimCounterparty(secret = sp.bytes("0x01223343")).run(sender = bob, now = sp.timestamp(124), valid = False)
-    scenario.h3("Correct secret")
-    c1.claimCounterparty(secret = sp.bytes("0x01223344")).run(sender = bob, now = sp.timestamp(124))
+    # -------------------- FIRST TEST -------------------------------------
+    scenario.h2("First test")
+    scenario.p("Scenario: Counterparty claims the token before epoch time")
+    c1.registerAsAdmin().run(
+        sender=admin
+    )  # ADMIN MUST REGISTER FIRST BEFORE ANYTHING ELSE
+    c1.setTxn(
+        owner=alice,
+        counterparty=bob,
+        fromOwner=sp.tez(50),
+        fromCounterparty=sp.tez(50),
+        epoch=sp.timestamp(123),
+        secret=sp.bytes("0x01223344"),
+    ).run(
+        sender=admin
+    )  # ADMIN MUST SET TXN DATA
 
-    # another test
-    scenario.h2("Another scenario: Both parties withdraw after both of them deposited...")
-    c1.addBalanceOwner().run(sender = alice, amount = sp.tez(50))
-    c1.withdrawOwner().run(sender = alice)
-    
-    c1.addBalanceCounterparty().run(sender = bob, amount = sp.tez(4))
-    c1.withdrawCounterparty().run(sender = bob)
+    c1.addBalanceOwner().run(sender=alice, amount=sp.tez(50))
+    c1.addBalanceCounterparty().run(sender=bob, amount=sp.tez(50))
+    scenario.p("Erronous secret")
+    c1.claimCounterparty(sp.bytes("0x01223343")).run(
+        sender=bob, now=sp.timestamp(120), valid=False
+    )
+    scenario.p("Correct secret")
+    c1.claimCounterparty(sp.bytes("0x01223344")).run(sender=bob, now=sp.timestamp(120))
 
-    c1.refund().run(sender = admin)
+    c1.resetTxn().run(sender=admin)
 
-    # another test
-    scenario.h2("Another scenario: Both parties withdraw after one of them deposited...")    
-    c1.withdrawOwner().run(sender = alice)
+    # -------------------- SECOND TEST -------------------------------------
+    scenario.h2("Second test")
+    scenario.p("Scenario: Owner claims the token after epoch time")
+    c1.setTxn(
+        owner=alice,
+        counterparty=bob,
+        fromOwner=sp.tez(40),
+        fromCounterparty=sp.tez(40),
+        epoch=sp.timestamp(123),
+        secret=sp.bytes("0x01223344"),
+    ).run(
+        sender=admin
+    )  # ADMIN MUST SET TXN DATA
 
-    c1.addBalanceCounterparty().run(sender = bob, amount = sp.tez(4))
-    c1.withdrawCounterparty().run(sender = bob)
+    c1.addBalanceOwner().run(sender=alice, amount=sp.tez(40))
+    c1.addBalanceCounterparty().run(sender=bob, amount=sp.tez(40))
 
-    c1.refund().run(sender = admin)
+    # owner can claim tokens after epoch time
+    c1.claimOwner().run(sender=alice, now=sp.timestamp(125))
 
-    # another test
-    scenario.h2("Another scenario: One tries to claim the funds when the other has withdrawn")    
-    c1.withdrawOwner().run(sender = alice)
+    c1.resetTxn().run(sender=admin)
 
-    c1.addBalanceCounterparty().run(sender = bob, amount = sp.tez(4))
-    c1.claimCounterparty(secret = sp.bytes("0x01223344")).run(sender = bob, now = sp.timestamp(124), valid = False)
+    # -------------------- THIRD TEST -------------------------------------
+    scenario.h2("Third test")
+    scenario.p(
+        "Scenario: Owner add funds. Counterparty withdrew so owner withdrew too. Admin reverts the funds to the respective parties."
+    )
+    c1.setTxn(
+        owner=alice,
+        counterparty=bob,
+        fromOwner=sp.tez(30),
+        fromCounterparty=sp.tez(30),
+        epoch=sp.timestamp(123),
+        secret=sp.bytes("0x01223344"),
+    ).run(
+        sender=admin
+    )  # ADMIN MUST SET TXN DATA
+    c1.addBalanceOwner().run(sender=alice, amount=sp.tez(30))
+    c1.toggleCounterpartyWithdrawn(sp.bool(True)).run(sender=bob)
+    c1.toggleOwnerWithdrawn(sp.bool(True)).run(sender=alice)
+    c1.revertFunds().run(sender=admin)
 
-    c1.withdrawCounterparty().run(sender = bob)
+    # -------------------- FOURTH TEST -------------------------------------
+    scenario.h2("Fourth test")
+    scenario.p("Scenario: There is a new admin. New admin sets a new pair of parties.")
 
-    c1.refund().run(sender = admin)
+    new_admin = sp.test_account("New Admin").address
+    charles = sp.test_account("Charles").address
+    darwin = sp.test_account("Darwin").address
+    c1.registerAsAdmin().run(
+        sender=new_admin
+    )  # ADMIN MUST REGISTER FIRST BEFORE ANYTHING ELSE
+    c1.setTxn(
+        owner=charles,
+        counterparty=darwin,
+        fromOwner=sp.tez(60),
+        fromCounterparty=sp.tez(60),
+        epoch=sp.timestamp(123),
+        secret=sp.bytes("0x01223344"),
+    ).run(
+        sender=new_admin
+    )  # ADMIN MUST SET TXN DATA
+    c1.addBalanceOwner().run(sender=charles, amount=sp.tez(60))
+    c1.addBalanceCounterparty().run(sender=darwin, amount=sp.tez(60))
+    c1.claimCounterparty(sp.bytes("0x01223344")).run(
+        sender=darwin, now=sp.timestamp(120)
+    )
+
+    c1.resetTxn().run(sender=new_admin)
 
 
-    # another test
-    scenario.h2("Another scenario: Admin tries to refund when only one has agreed to withdraw")    
-    c1.withdrawOwner().run(sender = alice)
-
-    c1.addBalanceCounterparty().run(sender = bob, amount = sp.tez(4))
-
-    c1.refund().run(sender = admin, valid = False)
-
-    scenario.h2("Another scenario: Owner tries to deposit even when it has withdrawn")    
-    c1.addBalanceOwner().run(sender = alice, amount = sp.tez(50), valid = False)
-
-    scenario.h2("Another scenario: Non-admin tries to refund")
-    c1.refund().run(sender = bob, valid = False)
-
-    scenario.h2("Valid refund")
-    c1.withdrawCounterparty().run(sender = bob)
-    c1.refund().run(sender = admin)
-    
-
-sp.add_compilation_target("escrow", Escrow(sp.address("tz1i1THJ4MHiqTWsHNcZNU4YT8tPtqZW5NYE"), sp.tez(20), sp.address("tz1MJpn4TVxcWxJ2DpxEJ98jsHGp21H4Jw3B"), sp.tez(5), sp.address("tz1Ty8N3BJ5SdBnesLtvVeMe4yRc2bgWxmTG"), sp.timestamp(1680117691), sp.bytes("0xc2e588e23a6c8b8192da64af45b7b603ac420aefd57cc1570682350154e9c04e")))
+sp.add_compilation_target(
+    "escrow",
+    Escrow(),
+)

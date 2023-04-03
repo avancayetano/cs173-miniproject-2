@@ -1,11 +1,10 @@
 # CS 173 Mini-project 2
 
-Contract address: `KT1EUWtC9Uh6MMr2oYaG9hKnrF6eaAXKTzpJ`
+Contract address: `KT1JLa3auBxnV4yjyxXMTa7iG3cZLEPk9EZY`
 
-Contract deployed on Limanet.
+Contract deployed on Ghostnet.
 
 Key assumptions:
-
 
 1. The two parties (owner and counterparty) can't be changed once the contract is deployed, that is, whoever the two accounts stored in the storage are the only ones that can participate in the escrow. This means that once I deploy my dapp, only I can claim and deposit because only I have access to the accounts used in the escrow contract.
 
@@ -16,4 +15,3 @@ Key assumptions:
 4. The owner or counterparty can only claim the _total_ funds _after_ the epoch time. (I'm assuming that there is a mistake in the claimCounterparty entrypoint, (it should be `sp.verify(self.data.epoch < sp.now)` just like in the claimOwner entrypoint)).
 
 5. Only when both of the parties agree to withdraw (back out of the escrow) can the admin initiate the fund reversion process. After the admin has authorized the withdrawal, owner will receive whatever `balanceOwner` is and counterparty will receive `balanceCounterparty` (note that this behavior is different from claiming, because claiming claims the _total_ funds). Moreover, after the withdrawal was authorized, both parties can no longer deposit funds nor claim the funds and hence, the other existing entrypoints should no longer work (I'm guessing this is what you meant by "modifying the existing entry points to include a check for whether the admin has authorized the withdrawal.")
-

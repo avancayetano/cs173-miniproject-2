@@ -1,21 +1,22 @@
 import React from "react";
 
-const ContractStorage = (props) => {
-  console.log(props.contractStorage);
-  const storage = props.contractStorage;
+import { network, contractAddr } from "../utils/wallet";
+
+const TxnDataTable = (props) => {
+  const txnData = props.txnData;
 
   return (
     <div className="container my-5">
-      <h4 className="text-center">Contract storage</h4>
+      {/* <h4 className="text-center">Contract storage</h4>
       <h6 className="text-center">
         <a
-          href={`https://limanet.tzkt.io/${props.contractAddr}/operations/`}
+          href={`https://${network}.tzkt.io/${contractAddr}/operations/`}
           target="_blank"
           rel="noopener noreferrer"
         >
           {props.contractAddr}
         </a>
-      </h6>
+      </h6> */}
       <table className="table mb-5">
         <thead>
           <tr>
@@ -27,10 +28,10 @@ const ContractStorage = (props) => {
         </thead>
         <tbody>
           <tr>
-            <td>{storage.admin}</td>
-            <td>{storage.owner}</td>
-            <td>{storage.counterparty}</td>
-            <td>{storage.epoch}</td>
+            <td>{txnData.admin}</td>
+            <td>{txnData.owner || "None"}</td>
+            <td>{txnData.counterparty || "None"}</td>
+            <td>{txnData.epoch}</td>
           </tr>
         </tbody>
       </table>
@@ -41,15 +42,15 @@ const ContractStorage = (props) => {
             <tbody>
               <tr>
                 <td>From Owner (mutez)</td>
-                <td>{storage.fromOwner}</td>
+                <td>{txnData.fromOwner}</td>
               </tr>
               <tr>
                 <td>Balance (mutez)</td>
-                <td>{storage.balanceOwner}</td>
+                <td>{txnData.balanceOwner}</td>
               </tr>
               <tr>
                 <td>Has withdrawn?</td>
-                <td>{storage.ownerWithdrew ? "Yes" : "No"}</td>
+                <td>{txnData.ownerWithdrawn ? "Yes" : "No"}</td>
               </tr>
             </tbody>
           </table>
@@ -60,15 +61,15 @@ const ContractStorage = (props) => {
             <tbody>
               <tr>
                 <td>From Counterparty (mutez)</td>
-                <td>{storage.fromCounterparty}</td>
+                <td>{txnData.fromCounterparty}</td>
               </tr>
               <tr>
                 <td>Balance (mutez)</td>
-                <td>{storage.balanceCounterparty}</td>
+                <td>{txnData.balanceCounterparty}</td>
               </tr>
               <tr>
                 <td>Has withdrawn?</td>
-                <td>{storage.counterpartyWithdrew ? "Yes" : "No"}</td>
+                <td>{txnData.counterpartyWithdrawn ? "Yes" : "No"}</td>
               </tr>
             </tbody>
           </table>
@@ -78,4 +79,4 @@ const ContractStorage = (props) => {
   );
 };
 
-export default ContractStorage;
+export default TxnDataTable;
