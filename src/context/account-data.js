@@ -9,7 +9,7 @@ const AccountDataContext = createContext({
   setAddress: async () => {},
   setType: (isAdmin) => {},
   setTxnData: (contractStorage) => {},
-  fetchAccountData: async () => {},
+  fetchAccountData: async (inAdminPage, contractStorage) => {},
   resetAccountData: () => {},
 });
 
@@ -47,13 +47,13 @@ export function AccountDataContextProvider(props) {
     setTxnData(txnData);
   };
 
-  const fetchAccountDataHandler = async (isAdmin, contractStorage) => {
+  const fetchAccountDataHandler = async (inAdminPage, contractStorage) => {
     const address = await getAccountAddr();
     if (address === "") {
       return false;
     }
     setAddress(address);
-    if (isAdmin) {
+    if (inAdminPage && Object.keys(contractStorage.txns).includes(address)) {
       const txnData = contractStorage.txns[address];
       setTxnData({ ...txnData, admin: address });
       setType("Admin");

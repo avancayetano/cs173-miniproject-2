@@ -38,14 +38,15 @@ const LandingPage = (props) => {
 
   const onConnectWallet = async (isAdmin) => {
     await connectWallet();
-    await accountDataContext.setAddress();
     await accountDataContext.fetchAccountData(
-      isAdmin,
+      false,
       contractDataContext.storage
     );
     setConnecting(true);
     setIsAdmin(isAdmin);
   };
+
+  console.log(accountDataContext);
 
   return (
     <>
@@ -79,6 +80,11 @@ const LandingPage = (props) => {
               Log In
             </div>
           </div>
+        </div>
+      </div>
+      <div className="container my-5">
+        <div className="row text-center">
+          <h4>All current escrow transactions.</h4>
         </div>
       </div>
     </>

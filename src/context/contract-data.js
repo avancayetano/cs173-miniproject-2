@@ -12,7 +12,7 @@ export function ContractDataContextProvider(props) {
 
   const fetchStorage = async () => {
     const storage = await fetchContractStorage();
-    setStorage(storage);
+    setStorage({ ...storage });
   };
 
   const context = {

@@ -5,9 +5,10 @@ import smartpy as sp
 
 
 class Escrow(sp.Contract):
-    def __init__(self):
+    def __init__(self, mainAdmin):
 
         self.init(
+            mainAdmin=mainAdmin,
             # this escrow contract can have multiple txns
             txns=sp.map(
                 l={},
@@ -53,6 +54,10 @@ class Escrow(sp.Contract):
     @sp.entry_point
     def setTxn(self, owner, counterparty, fromOwner, fromCounterparty, epoch, secret):
         sp.verify(self.data.txns.contains(sp.sender))  # check if sender is admin
+
+        # Check if both parties are not part of an escrow transaction yet
+        sp.verify(~self.data.partyToAdminMap.contains(owner))
+        sp.verify(~self.data.partyToAdminMap.contains(counterparty))
 
         sp.set_type(owner, sp.TAddress)
         sp.set_type(counterparty, sp.TAddress)
@@ -115,6 +120,10 @@ class Escrow(sp.Contract):
 
         # can only claim funds if escrow isn't withdrawn
         sp.verify(~self.data.txns[admin].escrowWithdrawn)
+        sp.verify(
+            ~self.data.txns[admin].ownerWithdrawn
+            & ~self.data.txns[admin].counterpartyWithdrawn
+        )
         sp.verify(sp.sender == identity)
         sp.send(
             identity,
@@ -129,7 +138,7 @@ class Escrow(sp.Contract):
         sp.set_type(secret, sp.TBytes)
 
         admin = self.data.partyToAdminMap[sp.sender]
-        sp.verify(~self.data.txns[admin].counterpartyWithdrawn)
+
         sp.verify(self.data.txns[admin].epoch > sp.now)
         sp.verify(self.data.txns[admin].hashedSecret.open_some() == sp.blake2b(secret))
         self.claim(self.data.txns[admin].counterparty.open_some(), admin)
@@ -188,16 +197,23 @@ class Escrow(sp.Contract):
         del self.data.partyToAdminMap[counterparty.open_some()]
         self.initTxnData(sp.sender)
 
+    @sp.entry_point
+    def hardReset():
+        sp.verify(self.data.mainAdmin == sp.sender)
+        self.data.txns = {}
+        self.data.partyToAdminMap = {}
+
 
 @sp.add_test(name="Escrow")
 def test():
     scenario = sp.test_scenario()
     scenario.h1("Escrow")
 
+    mainAdmin = sp.test_account("MainAdmin").address
     admin = sp.test_account("Admin").address
     alice = sp.test_account("Alice").address
     bob = sp.test_account("Bob").address
-    c1 = Escrow()
+    c1 = Escrow(mainAdmin)
     scenario += c1
     # -------------------- FIRST TEST -------------------------------------
     scenario.h2("First test")
@@ -297,8 +313,10 @@ def test():
 
     c1.resetTxn().run(sender=new_admin)
 
+    c1.hardReset().run(sender=mainAdmin)
+
 
 sp.add_compilation_target(
     "escrow",
-    Escrow(),
+    Escrow(sp.address("tz1i1THJ4MHiqTWsHNcZNU4YT8tPtqZW5NYE")),
 )
