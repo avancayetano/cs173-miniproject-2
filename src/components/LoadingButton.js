@@ -2,8 +2,6 @@ import React from "react";
 
 const LoadingButton = (props) => {
   const { isLoading, disabled, ...buttonProps } = props;
-  console.log(buttonProps);
-  console.log(disabled);
   return (
     <button disabled={isLoading || disabled} {...buttonProps}>
       {isLoading && (

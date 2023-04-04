@@ -36,6 +36,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (Object.keys(contractDataContext.storage).length > 0) {
+      console.log("dddddddddddddddd");
       (async () => {
         const authenticated = await accountDataContext.fetchAccountData(
           false,
@@ -177,8 +178,9 @@ const DashboardPage = () => {
                         accountDataContext.txnData.counterpartyWithdrawn ||
                         parseInt(accountDataContext.txnData.balanceOwner) ===
                           0 ||
-                        parseInt(accountDataContext.addBalanceCounterparty) ===
-                          0 ||
+                        parseInt(
+                          accountDataContext.txnData.balanceCounterparty
+                        ) === 0 ||
                         (accountDataContext.type === "Owner"
                           ? new Date().getTime() <
                             new Date(accountDataContext.txnData.epoch).getTime()
@@ -204,6 +206,7 @@ const DashboardPage = () => {
                     className="btn btn-primary"
                     isLoading={withdrawLoading}
                     onClick={() => onToggleWithdraw(false)}
+                    disabled={accountDataContext.txnData.escrowWithdrawn}
                   >
                     Cancel Withdraw
                   </LoadingButton>
@@ -215,6 +218,7 @@ const DashboardPage = () => {
                     className="btn btn-primary"
                     isLoading={withdrawLoading}
                     onClick={() => onToggleWithdraw(true)}
+                    disabled={accountDataContext.txnData.escrowWithdrawn}
                   >
                     Withdraw
                   </LoadingButton>
@@ -223,6 +227,8 @@ const DashboardPage = () => {
             </div>
           </div>
         </>
+      ) : accountDataContext.type === "" ? (
+        <h2 className="mb-3 text-center">Loading...</h2>
       ) : (
         <h2 className="mb-3 text-center">
           Account is not part of any escrow transaction.

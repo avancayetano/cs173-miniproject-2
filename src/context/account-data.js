@@ -40,8 +40,6 @@ export function AccountDataContextProvider(props) {
   };
 
   const setTxnDataHandler = (contractStorage) => {
-    console.log("cccccccccccc");
-    console.log(address);
     const admin = contractStorage.partyToAdminMap[address] || "";
     const txnData = contractStorage.txns[admin] || {};
     setTxnData(txnData);

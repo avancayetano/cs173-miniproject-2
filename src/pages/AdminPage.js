@@ -34,6 +34,7 @@ const AdminPage = () => {
 
   useEffect(() => {
     if (Object.keys(contractDataContext.storage).length > 0) {
+      console.log("eeeeeeeee");
       (async () => {
         const authenticated = await accountDataContext.fetchAccountData(
           true,
@@ -258,6 +259,7 @@ const AdminPage = () => {
                   data-bs-toggle="modal"
                   data-bs-target="#exampleModal"
                   isLoading={saveLoading}
+                  disabled={accountDataContext.txnData.escrowWithdrawn}
                 >
                   Set Escrow Data
                 </LoadingButton>
@@ -275,7 +277,7 @@ const AdminPage = () => {
                     !(
                       accountDataContext.txnData.ownerWithdrawn &&
                       accountDataContext.txnData.counterpartyWithdrawn
-                    )
+                    ) || accountDataContext.txnData.escrowWithdrawn
                   }
                   isLoading={revertLoading}
                 >
@@ -300,6 +302,8 @@ const AdminPage = () => {
           </div>
           <Form></Form>
         </>
+      ) : accountDataContext.type === "" ? (
+        <h2 className="mb-3 text-center">Loading...</h2>
       ) : (
         <h2 className="mb-3 text-center">
           Unauthorized. Account is not an admin.

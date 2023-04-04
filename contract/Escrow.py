@@ -125,6 +125,16 @@ class Escrow(sp.Contract):
             & ~self.data.txns[admin].counterpartyWithdrawn
         )
         sp.verify(sp.sender == identity)
+
+        # can only claim if both parties deposited
+        sp.verify(
+            (self.data.txns[admin].balanceOwner == self.data.txns[admin].fromOwner)
+            & (
+                self.data.txns[admin].balanceCounterparty
+                == self.data.txns[admin].fromCounterparty
+            )
+        )
+
         sp.send(
             identity,
             self.data.txns[admin].balanceOwner
@@ -174,15 +184,18 @@ class Escrow(sp.Contract):
             & self.data.txns[sp.sender].counterpartyWithdrawn
         )
 
-        # returns the funds to the respective parties
-        sp.send(
-            self.data.txns[sp.sender].owner.open_some(),
-            self.data.txns[sp.sender].balanceOwner,
-        )
-        sp.send(
-            self.data.txns[sp.sender].counterparty.open_some(),
-            self.data.txns[sp.sender].balanceCounterparty,
-        )
+        # revert funds to their respective parties
+        sp.if self.data.txns[sp.sender].balanceOwner > sp.tez(0):
+            sp.send(
+                self.data.txns[sp.sender].owner.open_some(),
+                self.data.txns[sp.sender].balanceOwner,
+            )
+
+        sp.if self.data.txns[sp.sender].balanceCounterparty > sp.tez(0):
+            sp.send(
+                self.data.txns[sp.sender].counterparty.open_some(),
+                self.data.txns[sp.sender].balanceCounterparty,
+            )
 
         self.data.txns[sp.sender].balanceOwner = sp.tez(0)
         self.data.txns[sp.sender].balanceCounterparty = sp.tez(0)
@@ -198,7 +211,7 @@ class Escrow(sp.Contract):
         self.initTxnData(sp.sender)
 
     @sp.entry_point
-    def hardReset():
+    def hardReset(self):
         sp.verify(self.data.mainAdmin == sp.sender)
         self.data.txns = {}
         self.data.partyToAdminMap = {}

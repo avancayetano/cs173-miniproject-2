@@ -5,11 +5,18 @@ import { network, contractAddr } from "../utils/wallet";
 const TxnDataTable = (props) => {
   const txnData = props.txnData;
 
+  console.log(txnData);
+
   return (
-    <div className="container my-5">
+    <div className="container mb-5">
       {Object.keys(txnData).length > 0 ? (
         <>
           <h4 className="text-center">Escrow Transaction Data</h4>
+          {txnData.escrowWithdrawn && (
+            <h5 className="text-danger text-center mb-3">
+              This escrow transaction was withdrawn by both parties.
+            </h5>
+          )}
           <table className="table mb-5">
             <thead>
               <tr>
@@ -46,6 +53,14 @@ const TxnDataTable = (props) => {
                     </td>
                   </tr>
                   <tr>
+                    <td>Has desposited?</td>
+                    <td>
+                      {txnData.fromOwner === txnData.balanceOwner
+                        ? "Yes"
+                        : "No"}
+                    </td>
+                  </tr>
+                  <tr>
                     <td>Has withdrawn?</td>
                     <td>{txnData.ownerWithdrawn ? "Yes" : "No"}</td>
                   </tr>
@@ -72,6 +87,14 @@ const TxnDataTable = (props) => {
                         parseInt(txnData.balanceCounterparty) /
                         10 ** 6
                       ).toString()}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Has desposited?</td>
+                    <td>
+                      {txnData.fromCounterparty === txnData.balanceCounterparty
+                        ? "Yes"
+                        : "No"}
                     </td>
                   </tr>
                   <tr>
