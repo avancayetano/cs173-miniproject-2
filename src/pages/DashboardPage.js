@@ -138,7 +138,8 @@ const DashboardPage = () => {
                   onClick={onDespositFunds}
                   disabled={
                     partyInfo.withdrawn ||
-                    partyInfo.balance === partyInfo.deposit
+                    (partyInfo.balance > 0 &&
+                      partyInfo.balance === partyInfo.deposit)
                   }
                 >
                   Deposit {parseInt(partyInfo.deposit) / 10 ** 6} tez

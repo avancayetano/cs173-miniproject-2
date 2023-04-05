@@ -55,7 +55,8 @@ const TxnDataTable = (props) => {
                   <tr>
                     <td>Has desposited?</td>
                     <td>
-                      {txnData.fromOwner === txnData.balanceOwner
+                      {parseInt(txnData.balanceOwner) > 0 &&
+                      txnData.fromOwner === txnData.balanceOwner
                         ? "Yes"
                         : "No"}
                     </td>
@@ -92,7 +93,8 @@ const TxnDataTable = (props) => {
                   <tr>
                     <td>Has desposited?</td>
                     <td>
-                      {txnData.fromCounterparty === txnData.balanceCounterparty
+                      {parseInt(txnData.balanceCounterparty) > 0 &&
+                      txnData.fromCounterparty === txnData.balanceCounterparty
                         ? "Yes"
                         : "No"}
                     </td>

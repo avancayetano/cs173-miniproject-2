@@ -112,7 +112,10 @@ const LandingPage = (props) => {
           </div>
           <div className="col">
             <h4>Log In</h4>
-            <p>To view your escrow transactions, log in as a normal user.</p>
+            <p>
+              To view your escrow transaction, log in as an escrow participant
+              account.
+            </p>
             <LoadingButton
               onClick={() => onConnectWallet(false)}
               className="btn btn-primary"
@@ -140,9 +143,11 @@ const LandingPage = (props) => {
               transactions.
             </li>
             <li>
-              Non-admin users (who can be either Owner or Counterparty) should
-              log in via the <kbd>Log In</kbd> button to view their escrow
-              transactions.
+              An <i>escrow participant account</i> (which can be either Owner or
+              Counterparty) should log in via the <kbd>Log In</kbd> button to
+              view the escrow transaction that the account participates in. Note
+              that a participant account can only participate in one escrow
+              transaction at a time.
             </li>
             <li>
               Owner and Counterparty can deposit funds to the escrow via the{" "}
