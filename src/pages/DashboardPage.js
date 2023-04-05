@@ -36,7 +36,6 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (Object.keys(contractDataContext.storage).length > 0) {
-      console.log("dddddddddddddddd");
       (async () => {
         const authenticated = await accountDataContext.fetchAccountData(
           false,

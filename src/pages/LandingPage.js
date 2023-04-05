@@ -70,13 +70,6 @@ const LandingPage = (props) => {
     setLoginLoading(false);
   };
 
-  console.log(contractDataContext.storage);
-  try {
-    console.log([
-      ...new Set(Object.values(contractDataContext.storage.partyToAdminMap)),
-    ]);
-  } catch (err) {}
-
   return (
     <>
       <Navbar

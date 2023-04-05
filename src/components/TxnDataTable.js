@@ -5,8 +5,6 @@ import { network, contractAddr } from "../utils/wallet";
 const TxnDataTable = (props) => {
   const txnData = props.txnData;
 
-  console.log(txnData);
-
   return (
     <div className="container mb-5">
       {Object.keys(txnData).length > 0 ? (

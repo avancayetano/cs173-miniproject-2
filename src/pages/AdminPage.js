@@ -34,7 +34,6 @@ const AdminPage = () => {
 
   useEffect(() => {
     if (Object.keys(contractDataContext.storage).length > 0) {
-      console.log("eeeeeeeee");
       (async () => {
         const authenticated = await accountDataContext.fetchAccountData(
           true,
@@ -46,8 +45,6 @@ const AdminPage = () => {
       })();
     }
   }, [contractDataContext]);
-
-  console.log(contractDataContext.storage);
 
   const submitForm = async (event) => {
     event.preventDefault();
