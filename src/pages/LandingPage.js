@@ -18,10 +18,20 @@ const LandingPage = (props) => {
   const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
+  const [currentTxns, setCurrentTxns] = useState([]);
+
   useEffect(() => {
     accountDataContext.resetAccountData();
     (async () => await contractDataContext.fetchStorage())();
   }, []);
+
+  useEffect(() => {
+    if (Object.keys(contractDataContext.storage).length > 0) {
+      setCurrentTxns([
+        ...new Set(Object.values(contractDataContext.storage.partyToAdminMap)),
+      ]);
+    }
+  }, [contractDataContext]);
 
   const onConnectWallet = async (isAdmin) => {
     if (isAdmin) {
@@ -118,15 +128,16 @@ const LandingPage = (props) => {
         <div className="">
           <ul className="w-75 mx-auto">
             <li>
-              Anyone can be register as an admin (via the{" "}
+              Anyone can register as an admin (via the{" "}
               <kbd>Log In as Admin</kbd> button). Once registered, the admin can
-              set up an escrow transaction (only one transaction) by setting up
-              the two parties (Owner and Counterparty), as well as the relevant
-              transaction data (owner address, counterparty address,{" "}
-              <code>fromOwner</code>, <code>fromCounterparty</code>,{" "}
-              <code>epoch</code> and <code>secret</code>). Note that the{" "}
-              <code>secret</code> value should be in hexadecimal format without
-              the prefix <code>0x</code> (e.g. <code>abcd1234</code>).
+              set up an escrow transaction (only one transaction per admin) by
+              setting up the two parties (Owner and Counterparty), as well as
+              other relevant transaction data. This can be done via the{" "}
+              <kbd>Set Escrow Data</kbd> button. The reasoning behind having
+              multiple admins is so that you can test this dapp on your own. You
+              can log in as an admin and setup your own escrow transaction. This
+              would allow the dapp to have multiple concurrent escrow
+              transactions.
             </li>
             <li>
               Non-admin users (who can be either Owner or Counterparty) should
@@ -158,15 +169,26 @@ const LandingPage = (props) => {
               deposited.).
             </li>
             <li>
-              Only when both of the parties agree to withdraw (back out of the
-              escrow) (via the <kbd>Withdraw</kbd> button) can the admin
-              initiate the fund reversion process. After the admin has
-              authorized the withdrawal, owner will receive whatever
+              Both the Owner and Counterparty can withdraw (i.e. back out of)
+              the escrow via the <kbd>Withdraw</kbd> button. Both can also
+              cancel their withdrawal via the <kbd>Cancel Withdraw</kbd> button.
+            </li>
+            <li>
+              Only when both of the parties agree to withdraw (via the{" "}
+              <kbd>Withdraw</kbd> button) can the admin revert the funds via the{" "}
+              <kbd>Revert Funds</kbd> button. When the admin clicks the{" "}
+              <kbd>Revert Funds</kbd> button, owner will receive whatever{" "}
               <code>balanceOwner</code> is and counterparty will receive{" "}
-              <code>balanceCounterparty</code>. Moreover, after the withdrawal
-              was authorized (and the funds reverted), both parties can no
-              longer deposit funds nor claim the funds and hence, the other
-              existing entrypoints should no longer work.
+              <code>balanceCounterparty</code>. Moreover, both parties can no
+              longer deposit funds nor claim the funds.
+            </li>
+            <li>
+              An admin can also reset an escrow transaction via the{" "}
+              <kbd>Reset</kbd> button. This will erase the Owner and
+              Counterparty from the escrow transaction, as well as the other
+              relevant transaction data (<code>fromOwner</code>,{" "}
+              <code>fromCounterparty</code>, <code>epoch</code>,{" "}
+              <code>secret</code>, etc).
             </li>
           </ul>
         </div>
@@ -183,21 +205,26 @@ const LandingPage = (props) => {
           </div>
         </div>
       </div>
-      <div className="container">
+      <div className="container my-5">
         <div className="text-center">
           <h3>All current escrow transactions</h3>
         </div>
         {Object.keys(contractDataContext.storage).length > 0 &&
-          [
-            ...new Set(
-              Object.values(contractDataContext.storage.partyToAdminMap)
-            ),
-          ].map((admin) => (
-            <div key={admin} className="">
-              <TxnDataTable
-                txnData={{ ...contractDataContext.storage.txns[admin], admin }}
-              ></TxnDataTable>
-            </div>
+          (currentTxns.length > 0 ? (
+            currentTxns.map((admin) => (
+              <div key={admin} className="">
+                <TxnDataTable
+                  txnData={{
+                    ...contractDataContext.storage.txns[admin],
+                    admin,
+                  }}
+                ></TxnDataTable>
+              </div>
+            ))
+          ) : (
+            <h4 className="text-center">
+              There are currently no escrow transactions.
+            </h4>
           ))}
       </div>
     </>
